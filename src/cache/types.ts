@@ -9,3 +9,27 @@ export interface CacheResult<T> {
     hit: boolean;
     entry?: CacheEntry<T>;
 }
+
+export type CacheEntryStatus =
+    | 'valid'
+    | 'expired'
+    | 'corrupted';
+
+export interface CacheEntrySummary {
+    fileName: string;
+    key?: string;
+    createdAt?: string;
+    expiresAt?: string;
+    expired: boolean;
+    sizeInBytes: number;
+    status: CacheEntryStatus;
+}
+
+export interface CacheListResult {
+    total: number;
+    valid: number;
+    expired: number;
+    corrupted: number;
+    sizeInBytes: number;
+    entries: CacheEntrySummary[];
+}

@@ -35,6 +35,7 @@ const server = new McpServer({
 
 registerTools(server, {
     figmaContextService,
+    figmaNodeCache,
 });
 
 async function main(): Promise<void> {

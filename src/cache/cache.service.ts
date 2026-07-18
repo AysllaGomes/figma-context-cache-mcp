@@ -1,7 +1,9 @@
 import {
     mkdir,
     readFile,
+    readdir,
     rename,
+    stat,
     unlink,
     writeFile,
 } from 'node:fs/promises';
@@ -10,6 +12,8 @@ import path from 'node:path';
 
 import type {
     CacheEntry,
+    CacheEntrySummary,
+    CacheListResult,
     CacheResult,
 } from './types.js';
 
@@ -118,6 +122,135 @@ export class CacheService {
         }
     }
 
+    async list(): Promise<CacheListResult> {
+        try {
+            const directoryEntries = await readdir(
+                this.directoryPath,
+                {
+                    withFileTypes: true,
+                },
+            );
+
+            const cacheFiles = directoryEntries.filter(
+                (entry) =>
+                    entry.isFile() &&
+                    entry.name.endsWith('.json'),
+            );
+
+            const entries = await Promise.all(
+                cacheFiles.map((entry) =>
+                    this.createEntrySummary(entry.name),
+                ),
+            );
+
+            entries.sort((first, second) => {
+                const firstCreatedAt =
+                    first.createdAt ?? '';
+
+                const secondCreatedAt =
+                    second.createdAt ?? '';
+
+                return secondCreatedAt.localeCompare(
+                    firstCreatedAt,
+                );
+            });
+
+            return {
+                total: entries.length,
+
+                valid: entries.filter(
+                    (entry) => entry.status === 'valid',
+                ).length,
+
+                expired: entries.filter(
+                    (entry) => entry.status === 'expired',
+                ).length,
+
+                corrupted: entries.filter(
+                    (entry) => entry.status === 'corrupted',
+                ).length,
+
+                sizeInBytes: entries.reduce(
+                    (total, entry) =>
+                        total + entry.sizeInBytes,
+                    0,
+                ),
+
+                entries,
+            };
+        } catch (error: unknown) {
+            if (
+                isNodeError(error) &&
+                error.code === 'ENOENT'
+            ) {
+                return {
+                    total: 0,
+                    valid: 0,
+                    expired: 0,
+                    corrupted: 0,
+                    sizeInBytes: 0,
+                    entries: [],
+                };
+            }
+
+            throw error;
+        }
+    }
+
+    private async createEntrySummary(fileName: string): Promise<CacheEntrySummary> {
+        const filePath = path.join(
+            this.directoryPath,
+            fileName,
+        );
+
+        const fileStats = await stat(filePath);
+
+        try {
+            const content = await readFile(
+                filePath,
+                'utf8',
+            );
+
+            const parsedEntry: unknown =
+                JSON.parse(content);
+
+            if (!isCacheEntry(parsedEntry)) {
+                return {
+                    fileName,
+                    expired: false,
+                    sizeInBytes: fileStats.size,
+                    status: 'corrupted',
+                };
+            }
+
+            const expired =
+                this.isExpired(parsedEntry);
+
+            return {
+                fileName,
+                key: parsedEntry.key,
+                createdAt: parsedEntry.createdAt,
+                expiresAt: parsedEntry.expiresAt,
+                expired,
+                sizeInBytes: fileStats.size,
+                status: expired
+                    ? 'expired'
+                    : 'valid',
+            };
+        } catch (error: unknown) {
+            if (error instanceof SyntaxError) {
+                return {
+                    fileName,
+                    expired: false,
+                    sizeInBytes: fileStats.size,
+                    status: 'corrupted',
+                };
+            }
+
+            throw error;
+        }
+    }
+
     private getFilePath(key: string): string {
         const safeKey = sanitizeCacheKey(key);
 
@@ -150,4 +283,25 @@ function isNodeError(
     error: unknown,
 ): error is NodeJS.ErrnoException {
     return error instanceof Error && 'code' in error;
+}
+
+function isCacheEntry(
+    value: unknown,
+): value is CacheEntry<unknown> {
+    if (
+        typeof value !== 'object' ||
+        value === null
+    ) {
+        return false;
+    }
+
+    const candidate =
+        value as Record<string, unknown>;
+
+    return (
+        typeof candidate.key === 'string' &&
+        typeof candidate.createdAt === 'string' &&
+        typeof candidate.expiresAt === 'string' &&
+        'data' in candidate
+    );
 }
