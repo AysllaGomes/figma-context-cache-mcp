@@ -1,6 +1,6 @@
 import type { AppConfig } from '../config/env.js';
 
-import { FigmaApiError } from "./erros.js";
+import { FigmaApiError } from "./errors.js";
 import type { FigmaNodesResponse } from './types.js';
 
 export interface GetNodeOptions {

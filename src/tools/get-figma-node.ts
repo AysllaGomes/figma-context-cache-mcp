@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod/v4';
 
-import { FigmaApiError } from "../figma/erros.js";
+import { FigmaApiError } from "../figma/errors.js";
 import { FigmaContextService } from "../figma/context.service.js";
 
 export function registerGetFigmaNodeTool(
