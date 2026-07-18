@@ -2,23 +2,25 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod/v4';
 
 import { FigmaApiError } from "../figma/erros.js";
-import type { FigmaClient } from '../figma/client.js';
+import { FigmaContextService } from "../figma/context.service.js";
 
 export function registerGetFigmaNodeTool(
     server: McpServer,
-    figmaClient: FigmaClient,
+    figmaContextService: FigmaContextService,
 ): void {
     server.registerTool(
         'get_figma_node',
         {
             title: 'Get Figma node',
             description:
-                'Busca um nó específico de um arquivo do Figma e retorna sua estrutura JSON.',
+                'Busca um nó específico de um arquivo do Figma. Utiliza cache local quando disponível.',
             inputSchema: z.object({
                 fileKey: z
                     .string()
                     .min(1)
-                    .describe('Chave do arquivo extraída da URL do Figma.'),
+                    .describe(
+                        'Chave do arquivo extraída da URL do Figma.',
+                    ),
 
                 nodeId: z
                     .string()
@@ -34,7 +36,15 @@ export function registerGetFigmaNodeTool(
                     .max(20)
                     .optional()
                     .describe(
-                        'Profundidade máxima de filhos retornados. Quando omitida, retorna toda a subárvore.',
+                        'Profundidade máxima dos filhos retornados.',
+                    ),
+
+                forceRefresh: z
+                    .boolean()
+                    .optional()
+                    .default(false)
+                    .describe(
+                        'Quando true, ignora o cache e consulta novamente a API do Figma.',
                     ),
             }),
             annotations: {
@@ -43,14 +53,29 @@ export function registerGetFigmaNodeTool(
                 idempotentHint: true,
             },
         },
-        async ({ fileKey, nodeId, depth }) => {
+        async ({
+                   fileKey,
+                   nodeId,
+                   depth,
+                   forceRefresh,
+               }) => {
             try {
-                const response = await figmaClient.getNode(fileKey, nodeId, {
-                    depth,
-                });
+                const result =
+                    await figmaContextService.getNode(
+                        fileKey,
+                        nodeId,
+                        {
+                            depth,
+                            forceRefresh,
+                        },
+                    );
 
-                const normalizedNodeId = nodeId.replaceAll('-', ':');
-                const nodeEntry = response.nodes[normalizedNodeId];
+                const normalizedNodeId = nodeId
+                    .trim()
+                    .replaceAll('-', ':');
+
+                const nodeEntry =
+                    result.response.nodes[normalizedNodeId];
 
                 if (!nodeEntry?.document) {
                     return {
@@ -70,15 +95,32 @@ export function registerGetFigmaNodeTool(
                             type: 'text',
                             text: JSON.stringify(
                                 {
-                                    file: {
-                                        name: response.name,
-                                        version: response.version,
-                                        lastModified: response.lastModified,
+                                    metadata: {
+                                        source: result.source,
+                                        cachedAt:
+                                        result.cacheEntry.createdAt,
+                                        expiresAt:
+                                        result.cacheEntry.expiresAt,
                                     },
+
+                                    file: {
+                                        name: result.response.name,
+                                        version:
+                                        result.response.version,
+                                        lastModified:
+                                        result.response.lastModified,
+                                    },
+
                                     node: nodeEntry.document,
-                                    components: nodeEntry.components ?? {},
-                                    componentSets: nodeEntry.componentSets ?? {},
-                                    styles: nodeEntry.styles ?? {},
+
+                                    components:
+                                        nodeEntry.components ?? {},
+
+                                    componentSets:
+                                        nodeEntry.componentSets ?? {},
+
+                                    styles:
+                                        nodeEntry.styles ?? {},
                                 },
                                 null,
                                 2,

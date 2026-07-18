@@ -1,11 +1,12 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import type { FigmaClient } from '../figma/client.js';
-import { registerGetFigmaNodeTool } from './get-figma-node.js';
 import { registerHealthCheckTool } from './health-check.js';
+import { registerGetFigmaNodeTool } from './get-figma-node.js';
+
+import type { FigmaContextService } from '../figma/context.service.js';
 
 export interface ToolDependencies {
-    figmaClient: FigmaClient;
+    figmaContextService: FigmaContextService;
 }
 
 export function registerTools(
@@ -13,5 +14,9 @@ export function registerTools(
     dependencies: ToolDependencies,
 ): void {
     registerHealthCheckTool(server);
-    registerGetFigmaNodeTool(server, dependencies.figmaClient);
+
+    registerGetFigmaNodeTool(
+        server,
+        dependencies.figmaContextService,
+    );
 }

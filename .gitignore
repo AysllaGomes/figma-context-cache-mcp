@@ -1,5 +1,16 @@
 .idea
 
+.env
+node_modules/
+dist/
 package-lock.json
 
-.env
+storage/figma/*
+storage/images/*
+storage/indexes/*
+storage/metadata/*
+
+!storage/figma/.gitkeep
+!storage/images/.gitkeep
+!storage/indexes/.gitkeep
+!storage/metadata/.gitkeep
