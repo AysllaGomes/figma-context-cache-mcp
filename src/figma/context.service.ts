@@ -78,6 +78,21 @@ export class FigmaContextService {
             response,
         };
     }
+
+    async syncNode(
+        fileKey: string,
+        nodeId: string,
+        options: GetNodeOptions = {},
+    ): Promise<FigmaNodeContextResult> {
+        return this.getNode(
+            fileKey,
+            nodeId,
+            {
+                ...options,
+                forceRefresh: true,
+            },
+        );
+    }
 }
 
 function createNodeCacheKey(
