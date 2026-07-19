@@ -272,11 +272,11 @@ npm run dev
 
 # Visão
 
-Este projeto nasceu como uma camada de cache para a API do Figma.
+Este projeto nasceu como uma simples camada de cache para a API do Figma.
 
-Seu objetivo de longo prazo é evoluir para um **Frontend Context Engine**, capaz de fornecer aos agentes de IA conhecimento rico e estruturado sobre sistemas de design, componentes frontend e arquitetura de aplicações.
+Com o tempo, a proposta evoluiu. O objetivo agora é transformá-lo em um **Frontend Context Engine**: uma camada capaz de conectar design, código e contexto para que agentes de IA possam compreender aplicações frontend de forma muito mais rica do que apenas consumindo respostas da API do Figma.
 
-Em vez de apenas recuperar arquivos JSON do Figma, a proposta é compreender as relações entre componentes, Design Tokens, histórias do Storybook e implementações no código-fonte, permitindo que agentes de IA tomem decisões mais precisas durante o desenvolvimento.
+A longo prazo, o projeto pretende mapear relações entre componentes, Design Tokens, Storybook e implementações no código, tornando o contexto reutilizável, persistente e realmente útil para acelerar o desenvolvimento assistido por IA.
 
 ---
 
