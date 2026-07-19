@@ -33,3 +33,21 @@ export interface CacheListResult {
     sizeInBytes: number;
     entries: CacheEntrySummary[];
 }
+
+export type CacheClearMode =
+    | 'all'
+    | 'expired'
+    | 'corrupted'
+    | 'key';
+
+export interface CacheClearOptions {
+    mode: CacheClearMode;
+    key?: string;
+}
+
+export interface CacheClearResult {
+    mode: CacheClearMode;
+    removed: number;
+    removedKeys: string[];
+    removedFiles: string[];
+}

@@ -1,6 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
 import { registerListCacheTool } from './list-cache.js';
+import { registerClearCacheTool } from './clear-cache.js';
 import { registerHealthCheckTool } from './health-check.js';
 import { registerGetFigmaNodeTool } from './get-figma-node.js';
 
@@ -24,6 +25,11 @@ export function registerTools(
     );
 
     registerListCacheTool(
+        server,
+        dependencies.figmaNodeCache,
+    );
+
+    registerClearCacheTool(
         server,
         dependencies.figmaNodeCache,
     );

@@ -11,6 +11,8 @@ import {
 import path from 'node:path';
 
 import type {
+    CacheClearOptions,
+    CacheClearResult,
     CacheEntry,
     CacheEntrySummary,
     CacheListResult,
@@ -73,10 +75,7 @@ export class CacheService {
         }
     }
 
-    async set<T>(
-        key: string,
-        data: T,
-    ): Promise<CacheEntry<T>> {
+    async set<T>(key: string, data: T): Promise<CacheEntry<T>> {
         await mkdir(this.directoryPath, {
             recursive: true,
         });
@@ -108,14 +107,18 @@ export class CacheService {
         return entry;
     }
 
-    async remove(key: string): Promise<void> {
+    async remove(key: string): Promise<boolean> {
         const filePath = this.getFilePath(key);
 
         try {
             await unlink(filePath);
+            return true;
         } catch (error: unknown) {
-            if (isNodeError(error) && error.code === 'ENOENT') {
-                return;
+            if (
+                isNodeError(error) &&
+                error.code === 'ENOENT'
+            ) {
+                return false;
             }
 
             throw error;
@@ -191,6 +194,115 @@ export class CacheService {
                     sizeInBytes: 0,
                     entries: [],
                 };
+            }
+
+            throw error;
+        }
+    }
+
+    async clear(options: CacheClearOptions): Promise<CacheClearResult> {
+        if (options.mode === 'key') {
+            return this.clearByKey(options.key);
+        }
+
+        const cache = await this.list();
+
+        const entriesToRemove =
+            cache.entries.filter((entry) => {
+                switch (options.mode) {
+                    case 'all':
+                        return true;
+
+                    case 'expired':
+                        return entry.status === 'expired';
+
+                    case 'corrupted':
+                        return entry.status === 'corrupted';
+                }
+            });
+
+        const removedEntries = await Promise.all(
+            entriesToRemove.map(async (entry) => {
+                const removed =
+                    await this.removeByFileName(
+                        entry.fileName,
+                    );
+
+                return {
+                    entry,
+                    removed,
+                };
+            }),
+        );
+
+        const successfullyRemoved =
+            removedEntries.filter(
+                ({ removed }) => removed,
+            );
+
+        return {
+            mode: options.mode,
+
+            removed: successfullyRemoved.length,
+
+            removedKeys: successfullyRemoved
+                .map(({ entry }) => entry.key)
+                .filter(
+                    (key): key is string =>
+                        key !== undefined,
+                ),
+
+            removedFiles: successfullyRemoved.map(
+                ({ entry }) => entry.fileName,
+            ),
+        };
+    }
+
+    private async clearByKey(key?: string): Promise<CacheClearResult> {
+        const normalizedKey = key?.trim();
+
+        if (!normalizedKey) {
+            throw new Error(
+                'A chave é obrigatória quando o modo de limpeza é "key".',
+            );
+        }
+
+        const removed =
+            await this.remove(normalizedKey);
+
+        return {
+            mode: 'key',
+            removed: removed ? 1 : 0,
+            removedKeys: removed
+                ? [normalizedKey]
+                : [],
+            removedFiles: removed
+                ? [`${sanitizeCacheKey(normalizedKey)}.json`]
+                : [],
+        };
+    }
+
+    private async removeByFileName(fileName: string): Promise<boolean> {
+        const safeFileName = path.basename(fileName);
+
+        if (!safeFileName.endsWith('.json')) {
+            return false;
+        }
+
+        const filePath = path.join(
+            this.directoryPath,
+            safeFileName,
+        );
+
+        try {
+            await unlink(filePath);
+            return true;
+        } catch (error: unknown) {
+            if (
+                isNodeError(error) &&
+                error.code === 'ENOENT'
+            ) {
+                return false;
             }
 
             throw error;
